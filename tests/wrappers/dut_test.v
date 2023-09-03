@@ -1,14 +1,17 @@
-`timescale 1ps/1ps
+module s27kl0642_test
+    (
+    DQ7      ,
+    DQ6      ,
+    DQ5      ,
+    DQ4      ,
+    DQ3      ,
+    DQ2      ,
+    DQ1      ,
+    DQ0      ,
+    RWDS     ,
 
-module hbram_ctrl_test(
-);
-
-  initial begin
-      $dumpfile("dut.vcd");
-      $dumpvars;
-      CLK=0;
-   forever begin
-      #5 CLK=~CLK;
-      end
-   end
-   endmodule
+    CSNeg    ,
+    CK       ,
+	CKn		 ,
+    RESETNeg
+    );

@@ -46,7 +46,7 @@ async def test_s27kl0642(s27kl0642):
     # Initialize monitor
     monitor = HyperBusIOMonitor(s27kl0642, "HyperBusIOMonitor", clock)
     await monitor.start()
-     cp_data = CoverPoint("cp_data", "Data coverage", bins=[0x0000, 0x1234, 0x5678, 0x9ABC, 0xFFFF])
+    cp_data = CoverPoint("cp_data", "Data coverage", bins=[0x0000, 0x1234, 0x5678, 0x9ABC, 0xFFFF])
     cp_rw = CoverPoint("cp_rw", "Read/Write coverage", bins=["Read", "Write"])
     cc_rw_data = CoverCross("cc_rw_data", "Read/Write vs. Data coverage", [cp_rw, cp_data])
 

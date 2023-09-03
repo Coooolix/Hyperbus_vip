@@ -1,4 +1,4 @@
-module s27kl0642_test
+module dut_test
     (
     DQ7      ,
     DQ6      ,

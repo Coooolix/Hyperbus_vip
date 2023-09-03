@@ -2,7 +2,7 @@ SIM ?= icarus
 TOPLEVEL_LANG ?= verilog
 VERILOG_SOURCES += $(PWD)/../hdl/hbram_ctrl.v
 VERILOG_SOURCES += $(PWD)/wrappers/dut_test.v
-VERILOG_SOURCES += $(PWD)/../hdl/s27kl0642.v.v
+VERILOG_SOURCES += $(PWD)/../hdl/s27kl0642.v
 
 dut:
 	rm	-rf	sim_build

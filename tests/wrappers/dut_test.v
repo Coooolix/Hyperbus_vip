@@ -50,9 +50,9 @@ s27kl0642 u1(
  initial begin
       $dumpfile("dut.vcd");
       $dumpvars;
-      CLK=0;
+      CK=0;
    forever begin
-      #5 CLK=~CLK;
+      #5 CK=~CK;
       end
    end
    endmodule

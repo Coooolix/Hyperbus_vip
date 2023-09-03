@@ -42,7 +42,7 @@ async def hyperbus_init(s27kl0642):
 @cocotb.test()
 async def test_s27kl0642(s27kl0642):
     # Initialize clock
-    clock = Clock(s27kl0642.ck, 10, units="ns")
+    clock = Clock(s27kl0642.clk, 10, units="ns")
     cocotb.fork(clock.start())
 
     # Initialize monitor

@@ -26,7 +26,7 @@ module dut_test
     inout  RWDS;
 
     input  CSNeg;
-    input  CK;
+    output reg  CK;
 	input  CKn;
     input  RESETNeg;
 

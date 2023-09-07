@@ -1,58 +1,72 @@
 import cocotb
-from cocotb.clock import Clock
-from cocotb.triggers import RisingEdge, FallingEdge, Timer
 from cocotb.result import TestFailure
-from dut_init import dut_init
-from dut_driver import IODriver, ConfigDriver
-from dut_monitor import IOMonitor
+from cocotb_coverage.coverage import CoverCross, CoverPoint, coverage_db
+from cocotb.triggers import Timer
+import os
+from dut_init import dut_init, dut_rst
+from dut_drivers import InputDriver, OutputDriver, ConfigDriver
+from dut_monitor import IO_Monitor
+import random
 
-@cocotb.coroutine
-def scoreboard(driver, monitor):
-    while True:
-        yield RisingEdge(driver.clock)
-        if len(driver.sent_transactions) != len(monitor.received_transactions):
-            raise TestFailure("Number of sent and received transactions do not match")
-        for i in range(len(driver.sent_transactions)):
-            if driver.sent_transactions[i] != monitor.received_transactions[i]:
-                raise TestFailure("Sent and received transactions do not match")
+def scoreboard(transaction):
+    """
+    Scoreboard function to check that the transaction was received correctly.
+    """
+    expected_values = {
+        "idle": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "rdy": [0, 0, 0, 0, 0, 0, 0, 0, 0, 1],
+        "txn": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+    }
+    assert transaction["phase"] in expected_values.keys()
+    for i in range(len(transaction["DQ"])):
+        assert transaction["DQ"][i] == expected_values[transaction["phase"]][i]
 
-@cocotb.test()
+
+@test(coverpoint=["transaction.phase"], covercross=[("transaction.phase", "transaction.CSNeg")])
 async def test_dut(dut):
-    dut_init(dut)
-
-    clock = Clock(dut.clock, 10, units="ns")
+    """
+    Testbench to verify the behavior of the Hyperbus HDL.
+    """
+    # Initialize clock
+    clock = Clock(dut.CK, 5, units="ns")  # 200MHz
     cocotb.fork(clock.start())
 
-    io_driver = IODriver(dut, "io_driver", clock)
-    config_driver = ConfigDriver(dut, "config_driver", clock)
-    io_monitor = IOMonitor(dut, "io_monitor", clock)
+    # Initialize signals
+    await test_dut_init(dut)
 
-    cocotb.fork(io_monitor.monitor_recv())
+    # Create bus monitor
+    bus_monitor = IOMonitor(dut, "bus_monitor", clock)
 
-    await io_driver.driver_send({"CSNeg": 1, "CK": 0, "CKn": 1, "RESETNeg": 1})
-    await config_driver.driver_send({"CSNeg": 1, "CK": 0, "CKn": 1, "RESETNeg": 1})
+    # Create input driver
+    input_driver = InputDriver(dut, "input_driver", clock)
 
-    await Timer(100, units="ns")
+    # Create output driver
+    output_driver = OutputDriver(dut, "output_driver", clock)
 
-    await io_driver.driver_send({"CSNeg": 0, "CK": 0, "CKn": 1, "RESETNeg": 1, "DQ0": 1, "DQ1": 0, "DQ2": 1, "DQ3": 0})
-    await io_driver.driver_send({"CSNeg": 0, "CK": 1, "CKn": 0, "RESETNeg": 1, "DQ0": 0, "DQ1": 1, "DQ2": 0, "DQ3": 1})
-    await io_driver.driver_send({"CSNeg": 0, "CK": 0, "CKn": 1, "RESETNeg": 1, "DQ0": 1, "DQ1": 1, "DQ2": 0, "DQ3": 1})
-    await io_driver.driver_send({"CSNeg": 1, "CK": 0, "CKn": 1, "RESETNeg": 1})
+    # Generate random transactions
+    while True:
+        transaction = {
+            "phase": cocotb.random.choice(["idle", "rdy", "txn"]),
+            "CSNeg": cocotb.random.randint(0, 1),
+            "CK": cocotb.random.randint(0, 1),
+            "CKn": cocotb.random.randint(0, 1),
+            "RESETNeg": cocotb.random.randint(0, 1),
+            "RWDS": cocotb.random.randint(0, 1),
+            "DQ7": cocotb.random.randint(0, 1),
+            "DQ6": cocotb.random.randint(0, 1),
+            "DQ5": cocotb.random.randint(0, 1),
+            "DQ4": cocotb.random.randint(0, 1),
+            "DQ3": cocotb.random.randint(0, 1),
+            "DQ2": cocotb.random.randint(0, 1),
+            "DQ1": cocotb.random.randint(0, 1),
+            "DQ0": cocotb.random.randint(0, 1),
+        }
 
-    await Timer(100, units="ns")
+        # Send the transaction
+        input_driver.driver_send(transaction)
 
-    await io_driver.driver_send({"CSNeg": 0, "CK": 0, "CKn": 1, "RESETNeg": 1, "DQ0": 0, "DQ1": 0, "DQ2": 0, "DQ3": 0})
-    await io_driver.driver_send({"CSNeg": 0, "CK": 1, "CKn": 0, "RESETNeg": 1, "DQ0": 1, "DQ1": 1, "DQ2": 1, "DQ3": 1})
-    await io_driver.driver_send({"CSNeg": 1, "CK": 0, "CKn": 1, "RESETNeg": 1})
+        # Wait for the transaction to be received
+        await RisingEdge(dut.CK)
 
-    await Timer(100, units="ns")
-
-    await io_driver.driver_send({"CSNeg": 0, "CK": 0, "CKn": 1, "RESETNeg": 1, "DQ0": 1, "DQ1": 1, "DQ2": 1, "DQ3": 0})
-    await io_driver.driver_send({"CSNeg": 0, "CK": 1, "CKn": 0, "RESETNeg": 1, "DQ0": 0, "DQ1": 0, "DQ2": 1, "DQ3": 1})
-    await io_driver.driver_send({"CSNeg": 1, "CK": 0, "CKn": 1, "RESETNeg": 1})
-
-    await Timer(100, units="ns")
-
-    await io_driver.driver_send({"CSNeg": 0, "CK": 0, "CKn": 1, "RESETNeg": 1, "DQ0": 0, "DQ1": 1, "DQ2": 1, "DQ3": 0})
-   await io_driver.driver_send({"CSNeg": 0, "CK": 1, "CKn": 0, "RESETNeg": 1, "DQ0": 1, "DQ1": 0, "DQ2": 0, "DQ3": 1})
-    await io_driver.driver_send({"CSNeg": 1, "CK": 0, "CKn": 1, "RESETNeg": 1})
+        # Check that the transaction was received correctly
+        coverage.cover(transaction)

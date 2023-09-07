@@ -1,39 +1,30 @@
 import cocotb
-from cocotb.triggers import RisingEdge, FallingEdge, Timer
-from cocotb_bus.monitors import BusMonitor
-
+from cocotb.monitors import BusMonitor
 
 class IOMonitor(BusMonitor):
-    _signals = ["CSNeg", "CK", "CKn", "RESETNeg"]
-    _optional_signals = ["RWDS"]
-    _data_signals = ["DQ7", "DQ6", "DQ5", "DQ4", "DQ3", "DQ2", "DQ1", "DQ0"]
-
-    def __init__(self, entity, name, clock):
-        BusMonitor.__init__(self, entity, name, clock)
-        self.received_transactions = []
+    def __init__(self, dut, clock, reset):
+        self.clock = clock
+        self.reset = reset
+        BusMonitor.__init__(self, dut, None, dut.clock)
         self.phase = "idle"
 
-    async def _monitor_recv(self):
+    async def monitor_recv(self):
         while True:
             await RisingEdge(self.clock)
-            transaction = {}
-            transaction["phase"] = self.phase
-            transaction["CSNeg"] = int(self.bus.CSNeg.value)
-            transaction["CK"] = int(self.bus.CK.value)
-            transaction["CKn"] = int(self.bus.CKn.value)
-            transaction["RESETNeg"] = int(self.bus.RESETNeg.value)
-            if hasattr(self.bus, "RWDS"):
-                transaction["RWDS"] = int(self.bus.RWDS.value)
-            for i in range(len(self._data_signals)):
-                transaction[self._data_signals[i]] = int(self.bus.DQ[i].value)
-            if transaction["CSNeg"] == 0 and transaction["CK"] == 0:
-                if transaction["RWDS"] == 0:
+            if self.phase == "idle":
+                if self.bus.CSNeg.value == 0:
                     self.phase = "rdy"
-                elif transaction["RWDS"] == 1:
+            elif self.phase == "rdy":
+                if self.bus.CSNeg.value == 1:
+                    self.phase = "idle"
+                elif self.bus.RWDS.value == 1:
                     self.phase = "txn"
-            if transaction["CSNeg"] == 1:
-                if self.phase == "rdy":
+                    data = [self.bus.DQ7.value, self.bus.DQ6.value, self.bus.DQ5.value, self.bus.DQ4.value,
+                            self.bus.DQ3.value, self.bus.DQ2.value, self.bus.DQ1.value, self.bus.DQ0.value]
+                    self._recv(data)
+            elif self.phase == "txn":
+                if self.bus.CSNeg.value == 1:
                     self.phase = "idle"
-                elif self.phase == "txn":
-                    self.phase = "idle"
-            self.received_transactions.append(transaction)
+                elif self.bus.RWDS.value == 0:
+                    self.phase = "rdy"
+            await FallingEdge(self.clock)

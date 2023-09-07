@@ -1,12 +1,15 @@
 import cocotb
-from cocotb.triggers import RisingEdge, Timer
+from cocotb.triggers import RisingEdge, FallingEdge, Timer
 
+@cocotb.test()
 async def dut_init(dut):
-    # Initialize signals
+    # Initialize all input signals
     dut.CSNeg <= 1
     dut.CK <= 0
     dut.CKn <= 1
-    dut.RESETNeg <= 0
+    dut.RESETNeg <= 1
+
+    # Initialize all output signals
     dut.DQ7 <= 0
     dut.DQ6 <= 0
     dut.DQ5 <= 0
@@ -17,15 +20,27 @@ async def dut_init(dut):
     dut.DQ0 <= 0
     dut.RWDS <= 0
 
-    # Apply reset signal
-    dut.RESETNeg <= 1
-    await Timer(10, units='ns')
+    # Wait for a few clock cycles
+    for i in range(5):
+        await RisingEdge(dut.CK)
+        await FallingEdge(dut.CK)
+
+    # Assert RESETNeg signal
     dut.RESETNeg <= 0
     await Timer(10, units='ns')
     dut.RESETNeg <= 1
 
-    # Wait for reset to complete
-    await RisingEdge(dut.CK)
-    while dut.RESETNeg.value == 0:
+    # Wait for a few clock cycles
+    for i in range(5):
         await RisingEdge(dut.CK)
-    await Timer(1, units='us')
+        await FallingEdge(dut.CK)
+
+    # Assert CSNeg signal
+    dut.CSNeg <= 0
+    await Timer(10, units='ns')
+    dut.CSNeg <= 1
+
+    # Wait for a few clock cycles
+    for i in range(5):
+        await RisingEdge(dut.CK)
+        await FallingEdge(dut.CK)

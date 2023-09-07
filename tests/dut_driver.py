@@ -1,102 +1,77 @@
 import cocotb
+from cocotb.drivers import BusDriver
 from cocotb.triggers import RisingEdge, FallingEdge, Timer
-from cocotb.binary import BinaryValue
-from cocotb_bus.drivers import BusDriver
 
 class InputDriver(BusDriver):
-    _signals = ["CSNeg", "CK", "CKn", "RESETNeg"]
-    _optional_signals = ["RWDS"]
-    _data_signals = ["DQ7", "DQ6", "DQ5", "DQ4", "DQ3", "DQ2", "DQ1", "DQ0"]
+    def __init__(self, dut, clock, reset):
+        self.clock = clock
+        self.reset = reset
+        BusDriver.__init__(self, dut, None, dut.clock)
 
-    def __init__(self, entity, name, clock):
-        BusDriver.__init__(self, entity, name, clock)
-        self.bus.CSNeg.setimmediatevalue(1)
-        self.bus.CK.setimmediatevalue(0)
-        self.bus.CKn.setimmediatevalue(1)
-        self.bus.RESETNeg.setimmediatevalue(1)
-        if hasattr(self.bus, "RWDS"):
-            self.bus.RWDS.setimmediatevalue(0)
-        for signal in self._data_signals:
-            getattr(self.bus, signal).setimmediatevalue(BinaryValue("zzzzzzzz"))
-
-    async def driver_send(self, transaction, sync=True, **kwargs):
-        if sync:
-            await RisingEdge(self.clock)
-        for signal in self._data_signals:
-            getattr(self.bus, signal).append(transaction[signal])
-        if hasattr(self.bus, "RWDS"):
-            self.bus.RWDS.append(transaction["RWDS"])
-        self.bus.CSNeg <= 0
+    async def send(self, data):
+        self.bus.DQ7 <= data[7]
+        self.bus.DQ6 <= data[6]
+        self.bus.DQ5 <= data[5]
+        self.bus.DQ4 <= data[4]
+        self.bus.DQ3 <= data[3]
+        self.bus.DQ2 <= data[2]
+        self.bus.DQ1 <= data[1]
+        self.bus.DQ0 <= data[0]
         await RisingEdge(self.clock)
-        self.bus.CK <= 1
-        self.bus.CKn <= 0
-        await RisingEdge(self.clock)
-        self.bus.CK <= 0
-        self.bus.CKn <= 1
-        await RisingEdge(self.clock)
-        self.bus.CSNeg <= 1
-        if "callback" in kwargs:
-            kwargs["callback"]()
 
 class OutputDriver(BusDriver):
-    _signals = ["CSNeg", "CK", "CKn", "RESETNeg"]
-    _optional_signals = ["RWDS"]
-    _data_width = 8
+    def __init__(self, dut, clock, reset):
+        self.clock = clock
+        self.reset = reset
+        self.queue = []
+        BusDriver.__init__(self, dut, None, dut.clock)
 
-    def __init__(self, entity, name, clock):
-        BusDriver.__init__(self, entity, name, clock)
-        self.bus.CSNeg.setimmediatevalue(1)
-        self.bus.CK.setimmediatevalue(0)
-        self.bus.CKn.setimmediatevalue(1)
-        self.bus.RESETNeg.setimmediatevalue(1)
-        if hasattr(self.bus, "RWDS"):
-            self.bus.RWDS.setimmediatevalue(0)
+    async def send(self, data):
+        self.queue.append(data)
 
-    async def driver_send(self, transaction, sync=True, **kwargs):
-        if sync:
+    async def append(self, data):
+        self.queue.append(data)
+
+    async def callback(self):
+        while len(self.queue) > 0:
+            data = self.queue.pop(0)
+            self.bus.DQ7 <= data[7]
+            self.bus.DQ6 <= data[6]
+            self.bus.DQ5 <= data[5]
+            self.bus.DQ4 <= data[4]
+            self.bus.DQ3 <= data[3]
+            self.bus.DQ2 <= data[2]
+            self.bus.DQ1 <= data[1]
+            self.bus.DQ0 <= data[0]
+            self.bus.RWDS <= 1
             await RisingEdge(self.clock)
-        self.bus.CSNeg <= 0
-        await RisingEdge(self.clock)
-        self.bus.CK <= 1
-        self.bus.CKn <= 0
-        await RisingEdge(self.clock)
-        if hasattr(self.bus, "RWDS"):
-            transaction["RWDS"] = self.bus.RWDS.value
-        for i in range(self.data_width):
-            transaction["DQ{}".format(i)] = self.bus.DQ[i].value
-        self.bus.CK <= 0
-        self.bus.CKn <= 1
-        await RisingEdge(self.clock)
-        self.bus.CSNeg <= 1
-        if "callback" in kwargs:
-            kwargs["callback"]()
+            self.bus.RWDS <= 0
+            await RisingEdge(self.clock)
 
 class ConfigDriver(BusDriver):
-    _signals = ["CSNeg", "CK", "CKn", "RESETNeg"]
-    _data_signals = ["DQ7", "DQ6", "DQ5", "DQ4", "DQ3", "DQ2", "DQ1", "DQ0"]
+    def __init__(self, dut, clock, reset):
+        self.clock = clock
+        self.reset = reset
+        BusDriver.__init__(self, dut, None, dut.clock)
 
-    def __init__(self, entity, name, clock):
-        BusDriver.__init__(self, entity, name, clock)
-        self.bus.CSNeg.setimmediatevalue(1)
-        self.bus.CK.setimmediatevalue(0)
-        self.bus.CKn.setimmediatevalue(1)
-        self.bus.RESETNeg.setimmediatevalue(1)
-        for signal in self._data_signals:
-            getattr(self.bus, signal).setimmediatevalue(BinaryValue("zzzzzzzz"))
-
-    async def driver_send(self, transaction, sync=True, **kwargs):
-        if sync:
-            await RisingEdge(self.clock)
-        for signal in self._data_signals:
-            getattr(self.bus, signal).append(transaction[signal])
+    async def send(self, data):
         self.bus.CSNeg <= 0
-        await RisingEdge(self.clock)
-        self.bus.CK <= 1
-        self.bus.CKn <= 0
-        await RisingEdge(self.clock)
-        self.bus.CK <= 0
-        self.bus.CKn <= 1
+        self.bus.DQ7 <= data[7]
+        self.bus.DQ6 <= data[6]
+        self.bus.DQ5 <= data[5]
+        self.bus.DQ4 <= data[4]
+        self.bus.DQ3 <= data[3]
+        self.bus.DQ2 <= data[2]
+        self.bus.DQ1 <= data[1]
+        self.bus.DQ0 <= data[0]
         await RisingEdge(self.clock)
         self.bus.CSNeg <= 1
-        if "callback" in kwargs:
-            kwargs["callback"]()
+        await RisingEdge(self.clock)
+
+class BusDriver(BusDriver):
+    def __init__(self, dut, name, clock):
+        self.clock = clock
+        BusDriver.__init__(self, dut, name, clock)
+
+    async def send(self, data):
+        raise NotImplementedError("send method not implemented")

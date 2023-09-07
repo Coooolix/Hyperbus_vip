@@ -5,7 +5,7 @@ from cocotb.triggers import Timer
 import os
 from dut_init import test_dut_init
 from dut_driver import InputDriver, OutputDriver, ConfigDriver
-from dut_monitor import IO_Monitor
+from dut_monitor import IOMonitor
 import random
 
 def scoreboard(transaction):

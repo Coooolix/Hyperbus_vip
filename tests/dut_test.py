@@ -3,7 +3,7 @@ from cocotb.result import TestFailure
 from cocotb_coverage.coverage import CoverCross, CoverPoint, coverage_db
 from cocotb.triggers import Timer
 import os
-from dut_init import dut_init, dut_rst
+from dut_init import test_dut_init
 from dut_drivers import InputDriver, OutputDriver, ConfigDriver
 from dut_monitor import IO_Monitor
 import random
